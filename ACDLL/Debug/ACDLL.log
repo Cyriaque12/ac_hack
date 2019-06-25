@@ -1,6 +1,2 @@
-﻿  pch.cpp
-  ACDLL.cpp
-  dllmain.cpp
-  Génération de code en cours...
-     Création de la bibliothèque D:\Fichiers\GameHacking\assault_cube_hack\ACDLL\Debug\ACDLL.lib et de l'objet D:\Fichiers\GameHacking\assault_cube_hack\ACDLL\Debug\ACDLL.exp
+﻿  dllmain.cpp
   ACDLL.vcxproj -> D:\Fichiers\GameHacking\assault_cube_hack\ACDLL\Debug\ACDLL.dll

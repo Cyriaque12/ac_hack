@@ -59,7 +59,7 @@ int main()
 	}
 	else {
 		std::cout << "Sucess, pid=" << pid << '\n';
-		LoadDll(process, L"..\\..\\ACDLL\\Debug\\\ACDLL.dll");
+		LoadDll(process, L"D:\\Fichiers\\GameHacking\\assault_cube_hack\\ACDLL\\Debug\\ACDLL.dll");
 	}
 
 	CloseHandle(process);
