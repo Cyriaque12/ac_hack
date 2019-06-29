@@ -1,4 +1,6 @@
 // dllmain.cpp : Définit le point d'entrée de l'application DLL.
+
+
 #include "pch.h"
 #include "offsets.h"
 #include <iostream>
@@ -7,6 +9,8 @@
 #define WINDOW
 #include <windows.h>
 #endif // !window
+
+#pragma warning(disable : 4996)
 
 struct ACPLAYER {
 	BYTE    unknown1[0x4];            // +0x0
@@ -72,22 +76,37 @@ struct ACPLAYER {
 
 
 DWORD WINAPI runBot(LPVOID lpParam) {
-	
-	// D
-	/*
-	* Charger la structure du joueur ne marche pas
-	* Probablement un probleme avec les adresses...
+
+
 
 	DWORD baseAdress = (DWORD)GetModuleHandle(NULL);
-	DWORD myplayerAddress = baseAdress + my_player_base_off;
-	ACPLAYER myPLayer = *(ACPLAYER*)myplayerAddress;
-	myPLayer.assaultRifleLoadedAmmos = 30;
-*/
-	//int ammo = *((int*)0x0088A188);
+	DWORD entityListAddressPtr = baseAdress + entity_list_off;
+	DWORD playersCountAddress = baseAdress + players_count_off;
+
+	int players_count = *(DWORD*)playersCountAddress;
+
+	ACPLAYER* player;
+	DWORD playerAddress = *(DWORD*)(entityListAddressPtr) + 0x4;
 	
-	// Test d'ecriture direct pour changer les ammo (sans passer par le pointeur)
-	// Fonctionne
-	*((int*)0x00A3A188) = 30;
+	for (int i = 0; i < players_count-1; i++)
+	{
+		std::cout << "NEW PLAYER :\n";
+		std::cout << "PLAYER ADRESS" << std::hex << playerAddress << '\n';
+		player = *(ACPLAYER * *)(playerAddress);
+		std::cout << "PLAYER NICKNAME :"  <<player->nickname << std::endl; //go to pointer in the array, dereference it, grab the name from the object it points to
+		std::cout << "PLAYER TEAM" <<  std::dec << player->team << std::endl;
+		std::cout << "AT LEAST THIS WENT WELL\n";
+		
+		// going to next player
+		playerAddress = playerAddress + (0x4);
+	}
+	
+	DWORD myplayerAddress = baseAdress + my_player_base_off;
+	//ACPLAYER* player = *(ACPLAYER **)(myplayerAddress);
+	
+	//player->assaultRifleLoadedAmmos = 30;
+
+	
 	return 1;
 }
 
@@ -99,7 +118,9 @@ BOOL APIENTRY DllMain( HMODULE hModule,
     switch (ul_reason_for_call)
     {
     case DLL_PROCESS_ATTACH:
-		std::cout << "PROCESS ATTACH";
+		AllocConsole();
+		freopen("CONOUT$", "w", stdout);
+		std::cout << "PROCESS ATTACH\n";
 		CreateThread(NULL, 0, &runBot, NULL, 0, NULL);
     case DLL_THREAD_ATTACH:
     case DLL_THREAD_DETACH:
