@@ -3,8 +3,11 @@
 
 #include "pch.h"
 #include "offsets.h"
+#include <algorithm>
 #include <iostream>
-
+#include <thread>
+#include <chrono>
+#define PI 3.1415927f
 #ifndef WINDOW
 #define WINDOW
 #include <windows.h>
@@ -12,6 +15,7 @@
 
 #pragma warning(disable : 4996)
 
+// Struct def
 struct ACPLAYER {
 	BYTE    unknown1[0x4];            // +0x0
 	FLOAT headPositionx;			// +0x4
@@ -72,40 +76,111 @@ struct ACPLAYER {
 	INT8    team;                     // +0x32C
 };
 
+struct vec3 {
+	float x, y, z;
+};
+// Geometry tools
+vec3 Subtract(vec3 src, vec3 dst) {
+	vec3 diff;
+	diff.x = src.x - dst.x;
+	diff.y = src.y - dst.y;
+	diff.z = src.z - dst.z;
+	return diff;
+};
 
+float Magnitude(vec3 vec) {
+	return sqrtf(vec.x * vec.x + vec.y * vec.y + vec.z * vec.z);
+};
+
+float Distance(vec3 src, vec3 dst) {
+	vec3 diff = Subtract(src, dst);
+	return Magnitude(diff);
+};
+
+vec3 CalcAngle(vec3 src, vec3 dst) {
+	vec3 angle;
+	angle.x = -atan2f(dst.x - src.x, dst.y - src.y) / PI * 180.0f + 180.0f;
+	angle.y = asinf((dst.z - src.z) / Distance(src, dst)) * 180.0f / PI;
+	angle.z = 0.0f;
+
+	return angle;
+};
+
+// 
+float getDistance(ACPLAYER* player1, ACPLAYER* player2) {
+	vec3 p1{ player1->positionx, player1->positiony, player1->positionz };
+	vec3 p2{ player2->positionx, player2->positiony, player2->positionz };
+	return Distance(p1,p2);
+}
+
+void aimPlayer(ACPLAYER* myPlayer, ACPLAYER* targetPlayer) {
+	
+	vec3 p1{ myPlayer->positionx, myPlayer->positiony, myPlayer->positionz };
+	vec3 p2{ targetPlayer->positionx, targetPlayer->positiony, targetPlayer->positionz };
+	vec3 angle = CalcAngle(p1, p2);
+
+	std::cout << "MY POS:" << p1.x << " " << p1.y << " " << p1.z << std::endl;
+	std::cout << "HIS POS:" << p2.x << " " << p2.y << " " << p2.z << std::endl;
+	// Left Rigth
+	float yaw = angle.x;
+	// Up Down
+	float pitch = angle.y;
+	std::cout << "YAW : " << yaw << std::endl;
+	std::cout << "PITCH" << pitch << std::endl;
+	myPlayer->viewx = FLOAT(yaw);
+	myPlayer->viewy = FLOAT(pitch);
+}
 
 
 DWORD WINAPI runBot(LPVOID lpParam) {
 
-
-
-	DWORD baseAdress = (DWORD)GetModuleHandle(NULL);
-	DWORD entityListAddressPtr = baseAdress + entity_list_off;
-	DWORD playersCountAddress = baseAdress + players_count_off;
-
-	int players_count = *(DWORD*)playersCountAddress;
-
-	ACPLAYER* player;
-	DWORD playerAddress = *(DWORD*)(entityListAddressPtr) + 0x4;
+	DWORD baseAddress = (DWORD)GetModuleHandle(NULL);
 	
-	for (int i = 0; i < players_count-1; i++)
+	DWORD myPlayerAddress = baseAddress + my_player_base_off;
+	DWORD entityListAddressPtr = baseAddress + entity_list_off;
+	DWORD playersCountAddress = baseAddress + players_count_off;
+
+	
+	while (TRUE)
 	{
-		std::cout << "NEW PLAYER :\n";
-		std::cout << "PLAYER ADRESS" << std::hex << playerAddress << '\n';
-		player = *(ACPLAYER * *)(playerAddress);
-		std::cout << "PLAYER NICKNAME :"  <<player->nickname << std::endl; //go to pointer in the array, dereference it, grab the name from the object it points to
-		std::cout << "PLAYER TEAM" <<  std::dec << player->team << std::endl;
-		std::cout << "AT LEAST THIS WENT WELL\n";
-		
-		// going to next player
-		playerAddress = playerAddress + (0x4);
-	}
-	
-	DWORD myplayerAddress = baseAdress + my_player_base_off;
-	//ACPLAYER* player = *(ACPLAYER **)(myplayerAddress);
-	
-	//player->assaultRifleLoadedAmmos = 30;
+		ACPLAYER* myPlayer = *(ACPLAYER * *)(myPlayerAddress);
+		// Some invulnerability
+		myPlayer->hp = 150;
+		// Defining some variables to check if the player is the target
+		float bestDistance = 9999;
+		ACPLAYER* targetPlayer = NULL;
+		// The element 0 of entity list is not a player, therefore we take element 1
+		DWORD playerAddress = *(DWORD*)(entityListAddressPtr)+0x4;
+		ACPLAYER* player;
 
+		// Loop through all others players
+		int players_count = *(DWORD*)playersCountAddress;
+		for (int i = 0; i < players_count - 1; i++)
+		{
+			//std::cout << "NEW PLAYER :\n";
+			player = *(ACPLAYER * *)(playerAddress);
+			// Let's not focus our team
+			if (player->team != myPlayer->team) {
+				// Check if the player is the target
+				float distance = getDistance(player, myPlayer);
+/*				
+				std::cout << "PLAYER ADRESS" << std::hex << playerAddress << '\n';
+				std::cout << "PLAYER NICKNAME :" << player->nickname << std::endl; //go to pointer in the array, dereference it, grab the name from the object it points to
+				std::cout << "DISTANCE PLAYER :" << distance << std::endl;
+*/
+				if (distance < bestDistance) {
+					targetPlayer = player;
+					distance = bestDistance;
+				}
+			}
+			// going to next player
+			playerAddress = playerAddress + 0x4;
+		}
+		// Target the player
+		aimPlayer(myPlayer, targetPlayer);
+		std::cout << "SLEEPING\n";
+		std::this_thread::sleep_for(std::chrono::milliseconds(200));
+	}
 	
 	return 1;
 }
