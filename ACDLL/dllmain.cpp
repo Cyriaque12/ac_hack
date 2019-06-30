@@ -119,16 +119,26 @@ void aimPlayer(ACPLAYER* myPlayer, ACPLAYER* targetPlayer) {
 	vec3 p2{ targetPlayer->positionx, targetPlayer->positiony, targetPlayer->positionz };
 	vec3 angle = CalcAngle(p1, p2);
 
-	std::cout << "MY POS:" << p1.x << " " << p1.y << " " << p1.z << std::endl;
-	std::cout << "HIS POS:" << p2.x << " " << p2.y << " " << p2.z << std::endl;
+//	std::cout << "MY POS:" << p1.x << " " << p1.y << " " << p1.z << std::endl;
+//	std::cout << "HIS POS:" << p2.x << " " << p2.y << " " << p2.z << std::endl;
 	// Left Rigth
 	float yaw = angle.x;
 	// Up Down
 	float pitch = angle.y;
-	std::cout << "YAW : " << yaw << std::endl;
-	std::cout << "PITCH" << pitch << std::endl;
+//	std::cout << "YAW : " << yaw << std::endl;
+//	std::cout << "PITCH" << pitch << std::endl;
 	myPlayer->viewx = FLOAT(yaw);
 	myPlayer->viewy = FLOAT(pitch);
+}
+
+void shoot() {
+	std::cout << "SHOOTING\n";
+	INPUT Inputs[2] = { 0 };
+	Inputs[0].type = INPUT_MOUSE;
+	Inputs[0].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
+	Inputs[1].type = INPUT_MOUSE;
+	Inputs[1].mi.dwFlags = MOUSEEVENTF_LEFTUP;
+	SendInput(2, Inputs, sizeof(Inputs));
 }
 
 
@@ -143,6 +153,8 @@ DWORD WINAPI runBot(LPVOID lpParam) {
 	
 	while (TRUE)
 	{
+		shoot();
+
 		ACPLAYER* myPlayer = *(ACPLAYER * *)(myPlayerAddress);
 		// Some invulnerability
 		myPlayer->hp = 150;
@@ -155,9 +167,10 @@ DWORD WINAPI runBot(LPVOID lpParam) {
 
 		// Loop through all others players
 		int players_count = *(DWORD*)playersCountAddress;
+		//std::cout << "NUMBER OF ENNEMY PLAYERS :" << players_count;
 		for (int i = 0; i < players_count - 1; i++)
 		{
-			//std::cout << "NEW PLAYER :\n";
+			std::cout << "NEW PLAYER :\n";
 			player = *(ACPLAYER * *)(playerAddress);
 			// Let's not focus our team
 			if (player->team != myPlayer->team) {
@@ -170,16 +183,27 @@ DWORD WINAPI runBot(LPVOID lpParam) {
 */
 				if (distance < bestDistance) {
 					targetPlayer = player;
-					distance = bestDistance;
+					bestDistance = distance;
 				}
 			}
 			// going to next player
 			playerAddress = playerAddress + 0x4;
 		}
 		// Target the player
-		aimPlayer(myPlayer, targetPlayer);
-		std::cout << "SLEEPING\n";
-		std::this_thread::sleep_for(std::chrono::milliseconds(200));
+		if (players_count != 0) {
+			aimPlayer(myPlayer, targetPlayer);
+		}
+		
+		// Shoot
+		if (bestDistance < 15) {
+			std::cout << "CLOSE\n";
+			
+			keybd_event(0x01, 0x9C, 0, 0); //Press down the left mouse button
+			keybd_event(0x01, 0x9C, KEYEVENTF_KEYUP, 0); //Release the left mouse button
+		}
+		
+		//std::cout << "SLEEPING\n";
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
 	}
 	
 	return 1;
